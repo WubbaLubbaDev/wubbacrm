@@ -49,15 +49,15 @@ function DashboardPage() {
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => (
-          <Card key={stat.label}>
+          <Card key={stat.label} className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">
                 {stat.label}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stat.value}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{stat.change}</p>
+              <div className="truncate text-3xl font-bold text-foreground">{stat.value}</div>
+              <p className="mt-1 truncate text-xs text-muted-foreground">{stat.change}</p>
             </CardContent>
           </Card>
         ))}
@@ -73,10 +73,12 @@ function DashboardPage() {
             <div key={activity.title}>
               {index > 0 && <Separator className="my-3" />}
               <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
+                <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground">{activity.title}</p>
-                    <Badge variant="outline">New</Badge>
+                    <p className="truncate text-sm font-medium text-foreground">{activity.title}</p>
+                    <Badge variant="outline" className="shrink-0">
+                      New
+                    </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">{activity.description}</p>
                 </div>

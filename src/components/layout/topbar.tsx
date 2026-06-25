@@ -45,42 +45,74 @@ export function TopBar() {
   const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : 'U';
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-background px-6">
-      <h1 className="text-lg font-semibold tracking-tight text-foreground">{pageTitle}</h1>
+    <header className="flex h-16 items-center gap-4 border-b border-border bg-background px-6">
+      <h1 className="shrink-0 text-lg font-semibold tracking-tight text-foreground">{pageTitle}</h1>
 
-      <div className="flex items-center gap-4">
-        <Input type="search" placeholder="Search..." className="h-9 w-64" />
+      {/* Full-width search bar */}
+      <div className="relative flex flex-1 items-center">
+        <SearchIcon className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search contacts, companies, deals..."
+          className="h-9 w-full pl-9"
+        />
+      </div>
 
-        <div ref={menuRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setMenuOpen((o) => !o)}
-            className="flex items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      {/* User menu */}
+      <div ref={menuRef} className="relative shrink-0">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          className="flex items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label="User menu"
+          aria-expanded={menuOpen}
+        >
+          <Avatar fallback={initials} size="sm" />
+        </button>
+
+        {menuOpen && (
+          <div
+            className={cn(
+              'absolute right-0 top-full z-[60] mt-2 w-56 rounded-lg border border-border bg-popover p-1 shadow-md',
+            )}
+            role="menu"
           >
-            <Avatar fallback={initials} size="sm" />
-          </button>
-
-          {menuOpen && (
             <div
-              className={cn(
-                'absolute right-0 top-12 z-50 w-56 rounded-lg border border-border bg-white p-1 shadow-md',
-              )}
+              className="truncate px-3 py-2 text-sm text-muted-foreground"
+              title={userEmail ?? undefined}
             >
-              <div className="px-3 py-2 text-sm text-muted-foreground">
-                {userEmail ?? 'Signed in'}
-              </div>
-              <div className="h-px bg-border" />
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-accent"
-              >
-                Logout
-              </button>
+              {userEmail ?? 'Signed in'}
             </div>
-          )}
-        </div>
+            <div className="my-1 h-px bg-border" />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-accent"
+              role="menuitem"
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </div>
     </header>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
   );
 }

@@ -26,6 +26,8 @@
   --color-destructive-foreground: #ffffff;
   --color-card: #ffffff;
   --color-card-foreground: #0a0a0a;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0a0a0a;
 
   /* Border radius */
   --radius-sm: 0.25rem;

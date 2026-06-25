@@ -1,5 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 
 export const Route = createFileRoute('/login')({
@@ -32,53 +36,55 @@ function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form
-        onSubmit={handleLogin}
-        className="w-full max-w-sm space-y-4 rounded-lg bg-white p-8 shadow-md"
-      >
-        <h1 className="text-2xl font-bold text-gray-900">WubbaCRM Login</h1>
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="items-center text-center">
+          <div className="mx-auto flex size-10 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground">
+            W
+          </div>
+          <CardTitle className="text-xl">WubbaCRM</CardTitle>
+          <p className="text-sm text-muted-foreground">Sign in to your account</p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                autoComplete="email"
+              />
+            </div>
 
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-            className="block w-full rounded-md border border-gray-300 p-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+              />
+            </div>
 
-        <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-            className="block w-full rounded-md border border-gray-300 p-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? 'Loading...' : 'Login'}
-        </button>
-      </form>
+            <Button type="submit" loading={loading} className="w-full">
+              {loading ? 'Signing in...' : 'Sign in'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

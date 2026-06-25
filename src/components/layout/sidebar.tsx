@@ -110,7 +110,7 @@ export function Sidebar() {
               title={collapsed ? item.label : undefined}
             >
               <span className="shrink-0">{item.icon}</span>
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
         })}
@@ -148,7 +148,7 @@ export function Sidebar() {
               </svg>
             )}
           </span>
-          {!collapsed && <span>Collapse</span>}
+          {!collapsed && <span className="truncate">Collapse</span>}
         </button>
       </div>
     </aside>
