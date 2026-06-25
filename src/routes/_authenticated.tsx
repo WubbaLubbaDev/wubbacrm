@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
+import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { supabase } from '@/lib/supabase';
 
 export const Route = createFileRoute('/_authenticated')({
@@ -14,5 +15,9 @@ export const Route = createFileRoute('/_authenticated')({
 });
 
 function AuthenticatedLayout() {
-  return <Outlet />;
+  return (
+    <DashboardLayout>
+      <Outlet />
+    </DashboardLayout>
+  );
 }
