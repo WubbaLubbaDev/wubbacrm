@@ -12,6 +12,8 @@ export const Route = createFileRoute(
   validateSearch: z.object({
     code: z.string().optional(),
     state: z.string().optional(),
+    iss: z.string().optional(),
+    scope: z.string().optional(),
   }),
   component: OAuthCallbackHandler,
 });
