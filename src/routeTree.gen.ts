@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -25,6 +26,11 @@ import { Route as AuthenticatedSettingsIntegrationsGoogleCalendarRouteImport } f
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -89,6 +95,7 @@ const AuthenticatedSettingsIntegrationsGoogleCalendarRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/companies': typeof AuthenticatedCompaniesRoute
   '/contacts': typeof AuthenticatedContactsRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/settings/integrations/': typeof AuthenticatedSettingsIntegrationsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/companies': typeof AuthenticatedCompaniesRoute
   '/contacts': typeof AuthenticatedContactsRoute
@@ -114,6 +122,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/_authenticated/companies': typeof AuthenticatedCompaniesRoute
   '/_authenticated/contacts': typeof AuthenticatedContactsRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/chat'
     | '/login'
     | '/companies'
     | '/contacts'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/settings/integrations/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/chat'
     | '/login'
     | '/companies'
     | '/contacts'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/chat'
     | '/login'
     | '/_authenticated/companies'
     | '/_authenticated/contacts'
@@ -169,6 +181,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  ChatRoute: typeof ChatRoute
   LoginRoute: typeof LoginRoute
   OauthGoogleCalendarCallbackRoute: typeof OauthGoogleCalendarCallbackRoute
 }
@@ -180,6 +193,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -318,6 +338,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  ChatRoute: ChatRoute,
   LoginRoute: LoginRoute,
   OauthGoogleCalendarCallbackRoute: OauthGoogleCalendarCallbackRoute,
 }
