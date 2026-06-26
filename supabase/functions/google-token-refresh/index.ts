@@ -2,11 +2,13 @@
 // Refreshes an expired Google OAuth access token using the stored refresh_token.
 // Updates the access_token and expires_at in the database.
 //
-// Secrets required:
-//   GOOGLE_CLIENT_ID      — Google OAuth client ID
-//   GOOGLE_CLIENT_SECRET  — Google OAuth client secret (NEVER in frontend)
-//   SUPABASE_URL          — This project's API URL
-//   SUPABASE_SERVICE_ROLE_KEY — Service role key (bypasses RLS for DB read/write)
+// Environment variables:
+//   SUPABASE_URL          — Auto-injected by Supabase (NOT a custom secret)
+//   SUPABASE_SECRET_KEYS  — Auto-injected by Supabase (NOT a custom secret);
+//                           JSON dict; SUPABASE_SECRET_KEYS['default'] is the
+//                           service role key used to bypass RLS for DB read/write.
+//   GOOGLE_CLIENT_ID      — Custom secret (set via `supabase secrets set` or Dashboard)
+//   GOOGLE_CLIENT_SECRET  — Custom secret (set via `supabase secrets set` or Dashboard)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -31,9 +33,11 @@ Deno.serve(async (req) => {
     }
 
     // Validate the caller's JWT and extract user_id
+    // SUPABASE_URL and SUPABASE_SECRET_KEYS are auto-injected by Supabase.
+    const SUPABASE_SECRET_KEYS = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')!);
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      SUPABASE_SECRET_KEYS['default'],
     );
     const jwt = authHeader.replace('Bearer ', '');
     const {
