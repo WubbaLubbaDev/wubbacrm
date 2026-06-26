@@ -1,37 +1,27 @@
 # WubbaCRM Review Reports
 
-Modular review documentation for the WubbaCRM project. Read only the modules relevant to your review; patch only what needs updating.
+Review documentation is split into two categories by purpose: reusable checklists (living, patched) and one-time verdict reports (frozen, historical).
 
-## Module Index
+## checklists/
 
-### setup/
-- `scaffold-review.md` — Phase 0 scaffold + Supabase auth review (full CHANGES REQUESTED → fix → APPROVED history)
-- `auth-review.md` — recurring auth patterns & regression checklist (logout redirect, beforeLoad guards, session retrieval, secrets hygiene)
+Living reference docs — patched when new issue patterns are discovered. Read the relevant checklist BEFORE reviewing a feature.
 
-### style/
-- `component-review.md` — Phase 1 dashboard UI + component library review (with Phase 1.5 login restyle + bug fix history)
-- `layout-review.md` — recurring layout/style patterns & regression checklist (dropdown spacing, search bar, overflow/truncation, hardcoded colors, missing variants, cn() merge, avatar onError)
+- `auth-checklist.md` — things to verify on every auth-related feature (logout redirect, route guards, session retrieval, env var validation, secrets hygiene)
+- `layout-checklist.md` — things to verify on every UI/layout feature (dropdown spacing & z-index, full-width search, overflow/truncation, sidebar collapse, stat card fit, hardcoded colors, missing variants, cn() merge, avatar onError)
+- `component-checklist.md` — things to verify when building/reviewing UI primitives (Button, Card, Input, Label, Badge, Avatar, Separator, Skeleton, EmptyState, general quality)
 
-### features/
-- `.gitkeep` — placeholder for feature-specific reviews (e.g. `contacts-table-review.md`)
+## features/
+
+Frozen verdict reports — one per feature/task. Never patched; use an `## Update` section within the report for fix history.
+
+- `scaffold-review.md` — Phase 0 scaffold + Supabase auth review (full CHANGES REQUESTED → fix → APPROVED history, includes logout fix update)
+- `dashboard-review.md` — Phase 1 dashboard UI + component library review (with Phase 1.5 login restyle + bug fix history)
 
 ## How to Use
 
-**When reviewing a new feature** (e.g. contacts table):
-1. Create a feature-specific review in `features/` (e.g. `features/contacts-table-review.md`)
-2. Patch relevant issue modules (e.g. add new layout bugs to `layout-review.md`, new auth bugs to `auth-review.md`)
-3. Check against existing issue modules to catch regressions — if a past layout issue resurfaced, flag it
-4. Do NOT rewrite the whole review history — only write the feature review and patch issue modules
-
-**Issue modules** (`auth-review.md`, `layout-review.md`) are the regression checklists. Each entry has:
-- Symptom: what the bug looks like
-- Correct pattern: the fixed approach (with file references)
-- Regression check: what to verify on future reviews touching that area
-
-## Git History
-
-These modules were split from two original review reports:
-- `scaffold-auth-review.md` (setup modules) — now `scaffold-review.md` + `auth-review.md`
-- `dashboard-ui-review.md` (style modules) — now `component-review.md` + `layout-review.md`
-
-The split was done on branch `feat/research-modular-docs`. No information was lost in the split — every finding from the originals lives in the appropriate module.
+**When reviewing a new feature:**
+1. Read the relevant checklists in `checklists/` before starting the review
+2. Create a feature-specific review report in `features/` (e.g. `features/contacts-table-review.md`)
+3. If you discover new recurring issue patterns, patch the relevant checklist (e.g. add a new layout bug pattern to `layout-checklist.md`)
+4. Check existing checklists to catch regressions — if a past issue resurfaced, flag it
+5. Do NOT rewrite or patch frozen feature reports — add an `## Update` section instead

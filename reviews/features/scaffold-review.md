@@ -6,7 +6,7 @@
 **Commits reviewed:** 13a556d (initial review) → 3f87f0c (fix)
 **Final verdict:** APPROVED (after fix)
 
-> **Related issue module:** `auth-review.md` — recurring auth patterns to check against in future reviews.
+> **Related checklist:** `../checklists/auth-checklist.md` — recurring auth patterns to check against in future reviews.
 
 ---
 

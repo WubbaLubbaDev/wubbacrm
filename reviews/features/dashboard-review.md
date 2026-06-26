@@ -6,7 +6,7 @@
 **Commits reviewed:** d48c49f (initial review) → 294aa72 (login restyle + bug fixes)
 **Final verdict:** APPROVED
 
-> **Related issue module:** `layout-review.md` — recurring layout/style patterns to check against in future reviews.
+> **Related checklist:** `../checklists/layout-checklist.md` — recurring layout/style patterns to check against in future reviews.
 
 ---
 
