@@ -11,6 +11,9 @@ const pageTitles: Record<string, string> = {
   '/companies': 'Companies',
   '/deals': 'Deals',
   '/settings': 'Settings',
+  '/settings/integrations': 'Integrations',
+  '/settings/integrations/google-calendar': 'Google Calendar',
+  '/settings/integrations/google-calendar/callback': 'Google Calendar',
 };
 
 export function TopBar() {
