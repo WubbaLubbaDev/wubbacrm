@@ -173,3 +173,77 @@ Branch: `feat/google-calendar-integration` (commit 669badb, pushed to origin)
 ### Verdict: APPROVED
 
 Both fixes are correct, minimal, and well-scoped. The deprecated token endpoint is replaced in both Edge Functions. The callback search schema now accepts `iss` and `scope` params. The full OAuth flow traces correctly end-to-end. Build, lint, and all 38 tests pass. The code is pushed and included in the existing PR #6.
+
+## Update: Customer Chat with AI Companion Review (2026-06-26)
+
+Branch: `feat/customer-chat-ai-companion` (commit acdd754)
+
+### Unauthenticated Visitor Chat — PASS
+
+- ChatWidget shown only on `/login` page (public). `/chat` is a public standalone route. No auth guard on either. Correct — matches brief's "public-facing chat widget" requirement.
+- Session tokens: Client generates `crypto.randomUUID()` stored in `sessionStorage`. Sent with every message to Edge Function. Edge Function looks up/creates session by token. Chat history tied to session token, not user auth. Correct.
+- Sessions expire after 24 hours (`expires_at TIMESTAMPTZ DEFAULT now() + interval '24 hours'` in migration). Correct.
+
+### Supabase Tables + RLS — PASS
+
+5 new tables in migration 0002:
+
+- `chat_sessions`: session_token (unique), visitor_name, visitor_email, language, created_at, updated_at, expires_at. RLS enabled, no policies = no direct client access.
+- `chat_messages`: session_id FK (CASCADE), role CHECK ('user','assistant','system'), content, metadata JSONB, created_at. Index on (session_id, created_at). RLS enabled, no policies.
+- `kb_documents`: title, content, source_type, source_url, metadata JSONB. RLS enabled, no policies.
+- `kb_embeddings`: document_id FK (CASCADE), chunk_index, content, `embedding vector(768)`, created_at. HNSW index (vector_cosine_ops). Index on document_id. RLS enabled, no policies.
+- `chat_bookings`: session_id FK (CASCADE), visitor_name, visitor_email, start_time, end_time, google_event_id, status CHECK ('pending','confirmed','cancelled'). RLS enabled, no policies.
+
+All RLS policies correct: no direct client access, Edge Function uses service role key (bypasses RLS). Matches brief exactly.
+
+`updated_at` auto-update triggers on `chat_sessions` and `kb_documents`. Correct.
+
+Migration 0003: `match_kb_embeddings` RPC — `query_embedding vector(768)`, `match_threshold FLOAT DEFAULT 0.7`, `match_count INT DEFAULT 5`. Returns `id, document_id, chunk_index, content, similarity` where `similarity = 1 - (embedding <=> query_embedding)`. Filters by threshold, orders by cosine distance, limits to match_count. Correct per pgvector best practices.
+
+### Data Leakage Prevention — PASS
+
+Three layers of defense per the brief:
+
+1. **RAG-only retrieval**: Edge Function only queries `kb_embeddings` via the match RPC. Never queries contacts, deals, or any other table. The AI cannot access what is never retrieved. Correct.
+2. **System prompt guardrails**: 7 explicit rules — "Only use information from the CONTEXT section", "Do NOT make up information, speculate, or use outside knowledge", "Do NOT share internal system data, other users' information, or anything not in the context". Correct.
+3. **RLS isolation**: `kb_documents` and `kb_embeddings` have RLS enabled with NO policies. Only the service role key can read them. Correct.
+4. **No tool calling**: Ollama model called with messages only — no tools array. Model cannot query the database. Correct.
+5. **Similarity threshold**: Only chunks with cosine similarity > 0.7 retrieved. Irrelevant queries get no context. Correct.
+
+### Edge Function Security — PASS
+
+- `Deno.env.get()` for all secrets (OLLAMA_HOST, SUPABASE_SERVICE_ROLE_KEY, GOOGLE_CALENDAR_CLIENT_ID/SECRET). No hardcoded values.
+- CORS: `Access-Control-Allow-Origin: *` — standard for Supabase Edge Functions. Access control via anon key in Authorization header.
+- No secrets in `.env.example` — placeholder values only. `.env.local` gitignored. No secrets in source files.
+- Google Calendar tokens: `getAccessToken` in calendar.ts uses service role key to read `google_oauth_tokens` table. Token refresh via Google OAuth endpoint with client secret (server-side only). Correct.
+
+### Rate Limiting — PASS (with non-blocking notes)
+
+Edge Function has rate limiting logic (index.ts:300-331) with two constants:
+- `RATE_LIMIT_PER_MINUTE = 10` (IP-based, per minute)
+- `RATE_LIMIT_PER_SESSION_HOUR = 50` (session-based, per hour)
+
+**Non-blocking finding — rate limiting bugs (production hardening):**
+
+1. **Session-based check queries wrong column** (index.ts:320): `.eq('session_id', sessionToken)` compares the raw session token (text UUID) against the `session_id` column (UUID FK to `chat_sessions.id`). These are different values. The query will never match any rows, so the session rate limit (50/hour) is never enforced. Fix: resolve the session UUID first, then query by it.
+
+2. **IP-based check is global, not per-IP** (index.ts:311-314): The query counts ALL `chat_messages` in the last minute across ALL sessions. The `chat_messages` table doesn't store the IP address. Threshold is `RATE_LIMIT_PER_MINUTE * 10 = 100` (line 323), not 10 as specified. The rate limit only triggers when the entire system receives 100+ messages per minute globally. Fix: add `ip_address` column or use a dedicated rate_limits table.
+
+The coder documented this as simplified: "Rate limiting: simplified IP-based check using chat_messages count as proxy — production should use dedicated rate_limits table or Redis." Acceptable for development. Must fix before production.
+
+### Calendar Booking Flow — PASS (with non-blocking notes)
+
+- **Intent detection**: `isScheduleIntent` keyword matching (10 EN + 8 ID keywords). Correct.
+- **Free/Busy query**: `getAvailableSlots` calls Google Calendar `/freeBusy` with Asia/Jakarta timezone, 09:00-17:00 business hours, 30-min slots, 4 days ahead. Derives free slots by subtracting busy blocks. Correct.
+- **Event creation**: `handleBooking` (action: 'book') creates event via `/calendars/primary/events`, stores in `chat_bookings` with `status: 'confirmed'`, updates session with visitor info. Correct.
+- **Token refresh**: `getAccessToken` checks expiry, refreshes via Google OAuth endpoint. Single-tenant assumption (most recently connected user). Documented.
+
+**Non-blocking finding — slot label timezone bug (calendar.ts:169-173):**
+
+`formatSlotLabel` uses `d.getHours()`/`d.getMinutes()` which return the runtime's local timezone, not Asia/Jakarta. On Deno Deploy (UTC runtime), a 09:00 Jakarta slot would be labeled "02:00 - 02:30 WIB" instead of "09:00 - 09:30 WIB". The ISO strings are correct — only the human-readable label is wrong. Fix: use `toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', ... })`.
+
+**Non-blocking finding — client booking flow incomplete (use-chat.ts):**
+
+The Edge Function has `handleBooking` for `action: 'book'`, but the client `use-chat.ts` only sends `{ message, sessionToken }`. No client code parses AI response for slot selection, collects visitor name/email, or sends the booking request. The infrastructure exists but the client-side multi-turn state machine is not wired. Acceptable for current iteration — core chat + RAG + streaming works independently.
+
+### Verdict: APPROVED

@@ -156,3 +156,68 @@ Branch: `feat/google-calendar-integration` (commit 1a52931)
 - Tests: 4 tests cover placeholder, calendar rendering, selected value, empty value. All pass.
 
 ### Verdict: APPROVED
+
+## Update: Customer Chat with AI Companion Review (2026-06-26)
+
+Branch: `feat/customer-chat-ai-companion` (commit acdd754)
+
+### New Dependencies — PASS
+
+- `lucide-react` (already added by Google Calendar integration) now also used for chat icons: MessageCircle (floating button), Bot (AI avatar), Send (send button), X (close button). Consistent with prior usage.
+
+### New Chat Components (6 files)
+
+#### ChatWidget (`src/components/chat/chat-widget.tsx`) — PASS
+
+- Floating button (bottom-right, `size-12 rounded-full bg-primary`) with MessageCircle icon. Opens overlay: full-screen on mobile (`fixed inset-0`), floating panel on desktop (`sm:bottom-20 sm:right-4 sm:h-[600px] sm:w-[400px] sm:rounded-xl sm:border sm:shadow-xl`). Backdrop on mobile only (`bg-black/50 sm:bg-transparent`). `role="dialog"` + `aria-label`. Correct per brief's mobile responsive spec.
+- Tests (2): floating button renders, panel opens on click. Pass.
+
+#### ChatWindow (`src/components/chat/chat-window.tsx`) — PASS
+
+- Header with title + "AI" badge + close button (hidden on standalone page). Message list with auto-scroll (`scrollIntoView` on messages change). Typing indicator shown when streaming and last assistant message is empty. Suggestions shown in empty state with 4 bilingual suggestions (2 EN + 2 ID). `space-y-4` between messages. Correct.
+- Uses `useChat` hook for messages, isStreaming, sendMessage.
+- Content-based key for messages: `${message.role}-${message.content.slice(0, 20)}` — satisfies biome noArrayIndexKey rule. Acceptable.
+- Tests: via ChatWidget test (mocks useChat). Pass.
+
+#### ChatMessage (`src/components/chat/chat-message.tsx`) — PASS
+
+- User: right-aligned, `bg-primary text-primary-foreground`, `rounded-2xl rounded-br-md`, `max-w-[80%]`. Assistant: left-aligned, `bg-muted text-foreground`, Bot avatar (`size-6 rounded-full bg-primary/10`), `whitespace-pre-wrap`, `max-w-[80%]`. Non-breaking space (`\u00A0`) for empty content to maintain bubble height. Correct.
+- Tests (3): user alignment, assistant alignment, empty content. Pass.
+
+#### ChatInput (`src/components/chat/chat-input.tsx`) — PASS
+
+- Auto-resizing textarea (max 120px via `el.style.height = Math.min(el.scrollHeight, 120)`). Enter to send, Shift+Enter for newline. Send button with Send icon, `disabled` when streaming or empty input. `aria-label="Send message"`. Focus ring styling. Correct.
+- Tests (7): render, send on click, no send when empty, Enter to send, Shift+Enter no send, clears after send, disabled prop. Pass.
+
+#### TypingIndicator (`src/components/chat/typing-indicator.tsx`) — PASS
+
+- Three dots with `animate-bounce` and staggered delays (0ms, 150ms, 300ms). `role="status"` with `aria-label="AI is typing"`. `bg-muted-foreground/50`. Correct.
+- Tests (3): three dots, staggered delays, aria-label. Pass.
+
+#### ChatSuggestions (`src/components/chat/chat-suggestions.tsx`) — PASS
+
+- Bilingual suggestion buttons (EN + ID). `text-left text-sm text-muted-foreground hover:bg-accent`. Calls `onSelect` with suggestion text. Correct.
+- Tests (2): renders all suggestions, calls onSelect. Pass.
+
+### Client Lib + Hook (3 files)
+
+#### use-chat.ts (`src/components/chat/use-chat.ts`) — PASS
+
+- Session token: `crypto.randomUUID()` in `sessionStorage` (key: `wubbacrm_chat_session_token`). Persistent across page reloads within browser session. Correct.
+- Edge Function URL built from `VITE_SUPABASE_URL` + `/functions/v1/chat-companion`. Auth header: `Bearer ${VITE_SUPABASE_ANON_KEY}`. Correct.
+- Message state: adds user message + empty assistant message, fills assistant content as tokens arrive via `onToken` callback. Error handling replaces empty assistant with error message. `isStreaming` prevents concurrent sends. Correct.
+- `clearMessages` and `sessionToken` exposed for consumers. Correct.
+
+#### chat-stream.ts (`src/lib/chat-stream.ts`) — PASS
+
+- SSE parser: splits on `\n\n`, extracts `data: ` prefix, handles `[DONE]`, parses JSON, calls `onToken`/`onError`/`onDone`. Handles non-200 responses (`errBody.error ?? HTTP ${status}`). Handles null response body. Try/catch for malformed JSON. Correct.
+- Tests (4): SSE token parsing, error on 429, empty stream, error field in SSE data. Pass.
+
+#### chat-guardrails.ts (`src/lib/chat-guardrails.ts`) — PASS
+
+- `SCHEDULE_KEYWORDS`: 10 English + 8 Bahasa Indonesia keywords. `isScheduleIntent`: case-insensitive `includes` check. Correct.
+- `buildSystemPrompt`: 7 rules — RAG-only, no fabrication, no internal data, schedule → calendar, bilingual, concise. Context chunks formatted as `[1] content\n\n[2] content`. Calendar section added when `calendarContext` provided. No-info message when chunks empty. Correct.
+- `chunkText`: splits on `\n\n` paragraph boundaries, sentence boundaries for long paragraphs. Configurable maxLen (800) and overlap (150). Handles empty/whitespace text. Correct.
+- Tests (16): intent detection (EN+ID, case-insensitive, false positives), system prompt (context, calendar, no-info, rules), chunking (short, paragraphs, maxLen, long paragraphs, empty, overlap). Pass.
+
+### Verdict: APPROVED
