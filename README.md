@@ -77,8 +77,10 @@ These are required by the `google-oauth-exchange`, `google-oauth-disconnect`, an
 | `GOOGLE_CLIENT_ID` | Same OAuth client ID as `VITE_GOOGLE_CLIENT_ID` above. | `123456789-abcdef.apps.googleusercontent.com` | Google Cloud Console > **Credentials** |
 | `GOOGLE_CLIENT_SECRET` | OAuth 2.0 client secret — server-side only. Never expose in the frontend. | `GOCSPX-your-secret-here` | Google Cloud Console > **Credentials** (client secret, shown once at creation) |
 | `GOOGLE_REDIRECT_URI` | Must match the frontend redirect URI exactly (the full origin + path). | `http://localhost:5173/settings/integrations/google-calendar/callback` | Compose from your deployment origin + `/settings/integrations/google-calendar/callback` |
-| `SUPABASE_URL` | Your Supabase project URL (same value as `VITE_SUPABASE_URL`). | `https://your-project-ref.supabase.co` | Supabase Dashboard > **Settings > API** |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key — used by Edge Functions to write/refresh token rows in the `google_oauth_tokens` table. Bypasses RLS; keep secret. | `your-service-role-key-here` | Supabase Dashboard > **Settings > API Keys** (service role key) |
+
+> **Auto-injected by Supabase — do NOT set these as custom secrets** (names with the `SUPABASE_` prefix are reserved and cannot be set via `supabase secrets set`):
+> - `SUPABASE_URL` — your project URL (same value as `VITE_SUPABASE_URL`).
+> - `SUPABASE_SECRET_KEYS` — JSON dictionary of secret keys; `SUPABASE_SECRET_KEYS['default']` is the service role key used by Edge Functions to bypass RLS. (Legacy projects may still use `SUPABASE_SERVICE_ROLE_KEY`; modern Supabase uses `SUPABASE_SECRET_KEYS`.)
 
 ## Google Calendar Setup
 
