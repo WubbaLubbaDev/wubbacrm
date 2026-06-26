@@ -106,3 +106,49 @@ Tests (4 tests): renders all nav items, renders logo, highlights active link (Da
 ## Summary
 
 The dashboard layout is well-structured, responsive, and handles overflow correctly. Sidebar is collapsible with all 5 nav items and proper active state logic. TopBar has full-width search and a properly positioned user dropdown with z-index and gap requirements met. All placeholder routes render EmptyState consistently. Minor notes on sidebar background color token and header height are non-blocking visual deviations.
+
+## Update: Google Calendar Integration Review (2026-06-26)
+
+Branch: `feat/google-calendar-integration` (commit 1a52931)
+
+### Settings Sub-Sidebar — PASS
+
+- `src/components/layout/settings-layout.tsx`: Wraps settings pages with `SettingsSidebar` (w-56) + content area (`flex-1 min-w-0`). The sub-sidebar is INSIDE the main content area, not the app sidebar. Matches the research brief's layout diagram exactly.
+- `src/components/layout/settings-sidebar.tsx`: Sub-navigation with 2 items — General (`/settings`) and Integrations (`/settings/integrations`). Uses `w-56` (narrower than app sidebar's `w-64`) and no logo/brand/user section. Pure navigation list. Correct.
+- Active state: General uses exact match (`pathname === '/settings'`), Integrations uses `startsWith` prefix match (lines 42-45). Same pattern as the app sidebar. Correct.
+- Styling: `sticky top-0`, active items get `bg-primary text-primary-foreground`, inactive get `text-muted-foreground hover:bg-accent`. Consistent with app sidebar patterns.
+
+### Route Structure — PASS
+
+- `src/routes/_authenticated/settings.tsx`: Layout route wrapping children in `SettingsLayout` with `<Outlet />`. Correct.
+- `src/routes/_authenticated/settings/index.tsx`: General settings page with EmptyState placeholder.
+- `src/routes/_authenticated/settings/integrations.tsx`: Integrations layout route (renders `<Outlet />`).
+- `src/routes/_authenticated/settings/integrations/index.tsx`: Integrations list page with `IntegrationCard` for Google Calendar. Checks connection status via Supabase query.
+- `src/routes/_authenticated/settings/integrations/google-calendar.tsx`: Main Google Calendar page with 4 states (loading, disconnected, connected, error). Matches brief's state machine.
+- `src/routes/_authenticated/settings/integrations/google-calendar/callback.tsx`: OAuth callback handler with zod `validateSearch` for `code` and `state` params. Correct.
+
+### TopBar Page Titles — PASS
+
+- `src/components/layout/topbar.tsx`: Added 3 new page titles to the `pageTitles` map: `/settings/integrations` → "Integrations", `/settings/integrations/google-calendar` → "Google Calendar", `/settings/integrations/google-calendar/callback` → "Google Calendar". Correct.
+
+### Google Calendar Page States — PASS
+
+- `src/routes/_authenticated/settings/integrations/google-calendar.tsx`:
+  - `loading` — spinner with "Checking connection status..." (lines 97-103). Correct.
+  - `disconnected` — Card with "Not Connected" status, ConnectButton (lines 121-151). Correct.
+  - `connected` — Card with "Connected" status, CalendarSelector, DisconnectButton (lines 154-208). Correct.
+  - `error` — AlertCircle icon, error message, "Try Again" button (lines 106-118). Correct.
+  - State transitions: loading → connected (if tokens found) or disconnected (if no tokens). Error state is reachable from the error button. Matches the brief.
+
+### Calendar Selection — PASS
+
+- After connecting, the page calls `listCalendars()` which fetches the user's Google Calendar list via the Google Calendar API (with token refresh if needed).
+- `CalendarSelector` renders the list. User selects a calendar → `saveSelectedCalendar()` updates the `calendar_id` column in `google_oauth_tokens`. Correct.
+- Selected calendar is persisted and restored on page reload (line 41: `setSelectedCalendar(stored.calendar_id)`).
+
+### Integrations List Page — PASS
+
+- `src/routes/_authenticated/settings/integrations/index.tsx`: Checks Google Calendar connection status on mount via Supabase query (`select('id').eq('user_id', ...).maybeSingle()`). Uses `maybeSingle()` (not `single()`) — correct for a query that might return 0 rows. Shows IntegrationCard with the right status.
+- Loading state: defaults to 'disconnected' while loading, then updates. Minor: could show a loading skeleton instead, but not a blocker.
+
+### Verdict: APPROVED
