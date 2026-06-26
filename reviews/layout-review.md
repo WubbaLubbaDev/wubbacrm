@@ -152,3 +152,31 @@ Branch: `feat/google-calendar-integration` (commit 1a52931)
 - Loading state: defaults to 'disconnected' while loading, then updates. Minor: could show a loading skeleton instead, but not a blocker.
 
 ### Verdict: APPROVED
+
+## Update: Customer Chat with AI Companion Review (2026-06-26)
+
+Branch: `feat/customer-chat-ai-companion` (commit acdd754)
+
+### Public Chat Route — PASS
+
+- `src/routes/chat.tsx`: Public standalone chat page at `/chat`. No auth guard — outside `_authenticated` layout. Renders `ChatWindow` with `standalone` prop (hides close button). Centered in `max-w-2xl` container, full height (`h-screen`). Correct per brief's route placement spec.
+- `src/routes/__root.tsx`: ChatWidget (floating button) shown only on `/login` page (`location.pathname === '/login'`). Not on authenticated routes or `/chat` standalone page. Correct — matches brief's "floating chat button on public-facing page" requirement.
+
+### ChatWidget Overlay Layout — PASS
+
+- Full-screen on mobile: `fixed inset-0 z-50` with backdrop `bg-black/50 sm:bg-transparent`.
+- Floating panel on desktop: `sm:bottom-20 sm:right-4 sm:inset-auto sm:h-[600px] sm:w-[400px] sm:rounded-xl sm:border sm:shadow-xl`.
+- Z-index: `z-50` for both backdrop and panel. Above sidebar/header (which have no explicit z-index above 50).
+- Correct per brief's mobile responsive spec: `fixed inset-0` on mobile, `sm:w-[400px] sm:h-[600px]` on desktop.
+
+### ChatWindow Layout — PASS
+
+- Flex column: header (`border-b px-4 py-3`) + message list (`flex-1 overflow-y-auto px-4 py-4 space-y-4`) + input (`border-t p-4`). Full height (`h-full`). Correct.
+- Auto-scroll: `messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })` on messages change. Correct.
+- Message bubbles: `max-w-[80%]` to keep readable on narrow screens. Matches brief's mobile spec.
+
+### TopBar Page Titles — PASS
+
+- No new page titles needed for `/chat` (standalone page has no TopBar — it's outside the dashboard layout).
+
+### Verdict: APPROVED
