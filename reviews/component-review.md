@@ -120,3 +120,39 @@ Tests (3 tests): renders children, full composition (Header+Title+Content+Footer
 ## Summary
 
 All 9 required components exist, render correctly, and pass build/lint/test. No external component libraries — built from scratch with plain React + Tailwind as specified. The `cn()` utility is a zero-dependency alternative to clsx+tailwind-merge (documented deviation). Minor notes on Avatar onError handling and Badge variant count are non-blocking and can be addressed when features require them.
+
+## Update: Google Calendar Integration Review (2026-06-26)
+
+Branch: `feat/google-calendar-integration` (commit 1a52931)
+
+### New Dependencies — PASS (documented deviation)
+
+- `lucide-react@1.21.0` added for icons (Calendar, CalendarPlus, Unplug, CheckCircle2, Loader2, AlertCircle). The previous review noted "No `lucide-react`" as a deliberate choice — the coder installed it for this feature. This is a documented, working deviation in the commit message. The icons render correctly and the build succeeds.
+- `zod@4.4.3` added for `validateSearch` on the callback route (TanStack Router search param validation). Also used by `@tanstack/router-plugin` internally. Acceptable.
+
+### New Components
+
+#### IntegrationCard (`src/components/integrations/integration-card.tsx`) — PASS
+
+- Props: `icon` (ComponentType), `name`, `description`, `status` ('connected' | 'disconnected' | 'error'), `href`. Matches the brief's interface.
+- Status badge: 3 states with correct labels (Connected, Not connected, Error). Error state uses `bg-destructive text-destructive-foreground` via `cn()` override since Badge doesn't have a destructive variant. Works correctly.
+- Uses `Link` from TanStack Router styled as a button (not `Button` wrapping `Link`). Documented deviation — avoids invalid DOM nesting (`<a>` inside `<button>`).
+- Link text changes: "Connect" when disconnected, "Manage" when connected. Correct.
+- Tests: 5 tests cover name/description rendering, badge states (connected/disconnected), link text (Connect/Manage). All pass.
+
+#### ConnectButton (`src/components/integrations/connect-button.tsx`) — PASS
+
+- Calls `initiateOAuthFlow()` on click. Button with `CalendarPlus` icon and "Connect Google Calendar" label. Simple and correct.
+
+#### DisconnectButton (`src/components/integrations/disconnect-button.tsx`) — PASS
+
+- Props: `onClick`, `loading`. Uses `Button` with `variant="outline"` and `text-destructive` class. `Unplug` icon. Correct.
+
+#### CalendarSelector (`src/components/integrations/calendar-selector.tsx`) — PASS
+
+- Native `<select>` element with styled classes matching the project's input styling (border, focus ring, disabled state).
+- Props: `calendars`, `selectedId`, `onChange`, `disabled`, `className`, `id`. Good TypeScript interface.
+- Renders placeholder option "Select a calendar..." and all calendars with "(Primary)" suffix for primary calendars.
+- Tests: 4 tests cover placeholder, calendar rendering, selected value, empty value. All pass.
+
+### Verdict: APPROVED
