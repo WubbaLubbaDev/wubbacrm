@@ -166,13 +166,198 @@ flex flex-col items-center justify-center gap-3 py-12 text-center
 
 Alternatively, `sonner` is the lightest toast library (1.2kB, no Radix dependency).
 
+## Chat Components (Customer Chat with AI Companion)
+
+Chat UI components for the public-facing AI companion widget. These are NOT dashboard components — they live in `src/components/chat/` and are used on public routes (no auth required).
+
+### ChatWidget (`src/components/chat/chat-widget.tsx`)
+
+Floating button + overlay container. Manages open/closed state.
+
+| Part | Classes |
+|---|---|
+| Floating button (closed) | `fixed bottom-4 right-4 z-50 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all hover:bg-primary/90` |
+| Overlay backdrop | `fixed inset-0 z-50 bg-black/50 sm:bg-transparent` |
+| Chat container (mobile) | `fixed inset-0 z-50 flex flex-col bg-background` |
+| Chat container (desktop) | `fixed bottom-20 right-4 z-50 flex h-[600px] w-[400px] flex-col rounded-xl border bg-card shadow-xl` |
+
+Use `MessageCircle` icon from lucide-react for the floating button.
+
+### ChatWindow (`src/components/chat/chat-window.tsx`)
+
+Full chat container: header + message list + input. Manages session, streaming, scroll.
+
+| Part | Classes |
+|---|---|
+| Window | `flex h-full flex-col` |
+| Header | `flex items-center justify-between border-b px-4 py-3` |
+| Header title | `text-sm font-semibold` |
+| Header close button | `size-8 rounded-md hover:bg-accent` (ghost button) |
+| Message list | `flex-1 overflow-y-auto px-4 py-4 space-y-4` (use ScrollArea pattern) |
+| Input area | `border-t p-4` |
+
+Auto-scroll to bottom on new messages: use a `ref` on the message list bottom and `scrollIntoView({ behavior: 'smooth' })`.
+
+### ChatMessage (`src/components/chat/chat-message.tsx`)
+
+Single message bubble. Handles alignment, avatar, markdown rendering.
+
+| Role | Container classes | Bubble classes |
+|---|---|---|
+| user | `flex justify-end` | `max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm text-primary-foreground` |
+| assistant | `flex justify-start gap-2` | `max-w-[80%] rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-sm text-foreground` |
+
+AI avatar (optional): `size-6 shrink-0 rounded-full bg-primary/10 flex items-center justify-center` with a `Bot` icon from lucide-react.
+
+For markdown rendering inside AI messages, install `react-markdown` and render with `prose prose-sm max-w-none` classes (or render plain text for simplicity).
+
+### ChatInput (`src/components/chat/chat-input.tsx`)
+
+Auto-resizing textarea + send button. Enter to send, Shift+Enter for newline.
+
+| Part | Classes |
+|---|---|
+| Container | `flex items-end gap-2` |
+| Textarea | `flex-1 min-h-[40px] max-h-[120px] resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50` |
+| Send button | Use Button component with `size="icon"` variant `"default"`. `Send` icon from lucide-react. Disabled when input is empty or streaming. |
+
+Auto-resize: adjust `style.height` on input change up to `max-h-[120px]`, then scroll.
+
+### TypingIndicator (`src/components/chat/typing-indicator.tsx`)
+
+Three-dot animated bouncing indicator. Shown before first token arrives.
+
+```
+flex items-center gap-1 px-3 py-2
+```
+
+Each dot: `size-2 rounded-full bg-muted-foreground/50 animate-bounce` with staggered `style={{ animationDelay: '0ms' | '150ms' | '300ms' }}`.
+
+### ChatSuggestions (`src/components/chat/chat-suggestions.tsx`)
+
+Optional: suggested questions shown in empty state (no messages yet).
+
+| Part | Classes |
+|---|---|
+| Container | `flex flex-col gap-2 py-2` |
+| Suggestion button | `rounded-lg border bg-background px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent` |
+
+### use-chat Hook (`src/components/chat/use-chat.ts`)
+
+Custom hook managing chat state: messages array, streaming state, session token, sending logic.
+
+Key state:
+- `messages: { role: 'user' | 'assistant', content: string }[]`
+- `isStreaming: boolean`
+- `sessionToken: string` (from `sessionStorage`, generated as `crypto.randomUUID()` if not present)
+- `sendMessage(text: string): Promise<void>` — adds user message, calls Edge Function, streams tokens into assistant message
+
+See the feature brief for the streaming implementation pattern.
+
+## Integration Components
+
+Added for the Google Calendar Integration feature. All files live in `src/components/integrations/`.
+
+### IntegrationCard (`src/components/integrations/integration-card.tsx`)
+
+A Card variant for listing available integrations on the Integrations page. Uses the existing Card component as base.
+
+Props:
+```typescript
+interface IntegrationCardProps {
+  icon: React.ComponentType<{ className?: string }>  // lucide-react icon
+  name: string
+  description: string
+  status: "connected" | "disconnected" | "error"
+  href: string  // TanStack Router Link target
+}
+```
+
+Layout:
+```
+Card
+├── CardHeader (flex row: icon + name/description on left, status badge on right)
+│   ├── Icon (size-8, text-foreground)
+│   ├── div (flex-col gap-0.5)
+│   │   ├── CardTitle (text-base)
+│   │   └── CardDescription
+│   └── Badge (status: connected=secondary, disconnected=outline, error=destructive)
+├── CardContent (optional — connection details or empty)
+└── CardFooter
+    └── Button (variant="outline", size="sm") as Link → "Manage" or "Connect"
+```
+
+Key classes:
+- Icon container: `flex size-10 items-center justify-center rounded-lg bg-muted`
+- Status badge: use existing Badge component with variant mapping
+
+### ConnectButton (`src/components/integrations/connect-button.tsx`)
+
+A Button variant that triggers the OAuth redirect flow. Uses the existing Button component.
+
+```tsx
+import { Button } from "@/components/ui/button"
+import { initiateOAuthFlow } from "@/lib/google-oauth"
+
+export function ConnectButton() {
+  return (
+    <Button onClick={initiateOAuthFlow} className="gap-2">
+      <PlugIcon className="size-4" />
+      Connect Google Calendar
+    </Button>
+  )
+}
+```
+
+- Uses `default` variant (black background in the B&W theme)
+- Icon: `Plug` or `CalendarPlus` from lucide-react
+- On click: calls `initiateOAuthFlow()` which stores state in sessionStorage and redirects to Google
+
+### DisconnectButton (`src/components/integrations/disconnect-button.tsx`)
+
+A Button variant for disconnecting an integration. Uses `destructive` or `outline` variant.
+
+```tsx
+<Button variant="outline" onClick={handleDisconnect} className="text-destructive">
+  <UnplugIcon className="size-4" />
+  Disconnect
+</Button>
+```
+
+### CalendarSelector (`src/components/integrations/calendar-selector.tsx`)
+
+A dropdown/select for choosing which Google Calendar to sync with. Build using a native `<select>` styled with Tailwind (or a custom dropdown using Button + popover pattern if needed).
+
+```tsx
+<select className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
+  <option value="">Select a calendar...</option>
+  {calendars.map(c => <option key={c.id} value={c.id}>{c.summary}</option>)}
+</select>
+```
+
+Use the same focus ring classes as the Input component.
+
+### OAuthCallbackHandler (route component)
+
+Not a reusable component — lives in the callback route file (`callback.tsx`). Handles:
+1. Reading `code` and `state` URL params
+2. Validating state against sessionStorage
+3. Calling the Edge Function to exchange code
+4. Showing loading/error/success states
+
+States to render:
+- Loading: `flex flex-col items-center justify-center gap-3 py-12` with a spinner (Loader2 icon with `animate-spin`)
+- Error: use EmptyState pattern with `text-destructive` and a retry Button
+- Success: auto-navigate to the Google Calendar settings page
+
 ## Cross-References
 
 - Color tokens referenced by these classes: see `color-system.md`
 - Spacing/radius/shadow tokens: see `spacing-layout.md`
 - Typography classes (text-sm, font-semibold, etc.): see `typography.md`
-- Layout components (sidebar, header): see `layout-patterns.md`
+- Layout components (sidebar, header, settings sub-sidebar): see `layout-patterns.md`
 - File naming conventions (kebab-case files, PascalCase components): see `../setup/project-structure.md`
+- Google Calendar integration full brief: see `../features/google-calendar-integration-brief.md`
 
 ## Sources
 

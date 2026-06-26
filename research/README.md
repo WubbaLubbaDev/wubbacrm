@@ -10,16 +10,19 @@ Modular reference documentation for the WubbaCRM project. Read only the modules 
 - `tanstack-router.md` — file-based routing conventions, route tree gen, beforeLoad guards, layout routes
 - `supabase-client.md` — Supabase project details, API keys, client module, env vars, auth config
 - `auth-patterns.md` — login flow, protected routes, onAuthStateChange, logout redirect chain
+- `ai-chat-schema.md` — pgvector setup, chat/knowledge base tables, RLS strategy, Edge Function env vars
 
 ### style/
 - `color-system.md` — black & white OKLCH color tokens, CSS custom properties, light/dark themes, @theme inline mapping
 - `typography.md` — Inter font, font stack, type hierarchy, weights
 - `spacing-layout.md` — spacing scale, border radius, shadow tokens, gap/padding conventions
-- `component-patterns.md` — Button/Card/Input/Label/Badge/Table/Separator/Skeleton/Avatar/Breadcrumb/ScrollArea/EmptyState/Toast variants and Tailwind classes
+- `component-patterns.md` — Button/Card/Input/Label/Badge/Table/Separator/Skeleton/Avatar/Breadcrumb/ScrollArea/EmptyState/Toast/ChatWidget/ChatWindow/ChatMessage/ChatInput/TypingIndicator/ChatSuggestions variants and Tailwind classes
 - `layout-patterns.md` — sidebar, header/topbar, DashboardLayout composition, login page styling
 
 ### features/
-- `.gitkeep` — placeholder for feature-specific briefs (e.g. `contacts-table-brief.md`)
+- `customer-chat-ai-companion-brief.md` — AI companion chat widget (Ollama + RAG + Google Calendar booking)
+- `google-calendar-integration-brief.md` — Google Calendar OAuth integration: OAuth 2.0 web server flow, Supabase token storage, Edge Functions for code exchange and token refresh, Settings sub-sidebar UI, IntegrationCard/ConnectButton/CalendarSelector components
+- `.gitkeep` — placeholder for feature-specific briefs
 
 ## How to Use
 
