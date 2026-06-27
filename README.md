@@ -66,7 +66,7 @@ These are bundled into the client by Vite (any `VITE_`-prefixed var). Copy `.env
 | `VITE_SUPABASE_ANON_KEY` | Supabase publishable/anon key. Client-side safe; used for auth and DB access (RLS-protected). | `your-publishable-key-here` | Supabase Dashboard > **Settings > API Keys** (publishable key) |
 | `VITE_GOOGLE_CLIENT_ID` | Google OAuth 2.0 client ID. Public value, safe for the frontend. Used to initiate the OAuth consent flow. | `123456789-abcdef.apps.googleusercontent.com` | Google Cloud Console > **APIs & Services > Credentials** (OAuth 2.0 Client ID) |
 
-> **Redirect URI note:** The OAuth redirect URI is derived automatically from `window.location.origin` at runtime as `<origin>/settings/integrations/google-calendar/callback`. There is **no** `VITE_GOOGLE_REDIRECT_URI` env var — instead, make sure the redirect URI for each environment is registered in Google Cloud Console under **Authorized redirect URIs** (e.g. `http://localhost:5173/settings/integrations/google-calendar/callback` for local dev).
+> **Redirect URI note:** The OAuth redirect URI is derived automatically from `window.location.origin` at runtime as `<origin>/oauth/google-calendar/callback`. There is **no** `VITE_GOOGLE_REDIRECT_URI` env var — instead, make sure the redirect URI for each environment is registered in Google Cloud Console under **Authorized redirect URIs** (e.g. `http://localhost:5173/oauth/google-calendar/callback` for local dev).
 
 ### Server-side secrets (Supabase Edge Functions)
 
@@ -76,7 +76,7 @@ These are required by the `google-oauth-exchange`, `google-oauth-disconnect`, an
 |----------|-------------|---------|-----------------|
 | `GOOGLE_CLIENT_ID` | Same OAuth client ID as `VITE_GOOGLE_CLIENT_ID` above. | `123456789-abcdef.apps.googleusercontent.com` | Google Cloud Console > **Credentials** |
 | `GOOGLE_CLIENT_SECRET` | OAuth 2.0 client secret — server-side only. Never expose in the frontend. | `GOCSPX-your-secret-here` | Google Cloud Console > **Credentials** (client secret, shown once at creation) |
-| `GOOGLE_REDIRECT_URI` | Must match the frontend redirect URI exactly (the full origin + path). | `http://localhost:5173/settings/integrations/google-calendar/callback` | Compose from your deployment origin + `/settings/integrations/google-calendar/callback` |
+| `GOOGLE_REDIRECT_URI` | Must match the frontend redirect URI exactly (the full origin + path). | `http://localhost:5173/oauth/google-calendar/callback` | Compose from your deployment origin + `/oauth/google-calendar/callback` |
 
 > **Auto-injected by Supabase — do NOT set these as custom secrets** (names with the `SUPABASE_` prefix are reserved and cannot be set via `supabase secrets set`):
 > - `SUPABASE_URL` — your project URL (same value as `VITE_SUPABASE_URL`).
@@ -103,8 +103,8 @@ WubbaCRM can connect to a user's Google Calendar via OAuth 2.0. The integration 
    - Click **Create Credentials > OAuth client ID**
    - Select **Web application** as the type
    - Under **Authorized redirect URIs**, add the callback URL for each environment:
-     - Local dev: `http://localhost:5173/settings/integrations/google-calendar/callback`
-     - Production: `https://your-domain.com/settings/integrations/google-calendar/callback`
+     - Local dev: `http://localhost:5173/oauth/google-calendar/callback`
+     - Production: `https://your-domain.com/oauth/google-calendar/callback`
    - Note the **Client ID** and **Client Secret** shown after creation
 4. Configure the OAuth consent screen (**APIs & Services > OAuth consent screen**) with your app name, support email, and scopes. Add the `https://www.googleapis.com/auth/calendar` scope. If your app is in "Testing" status, add your own Google account as a test user.
 5. Set the server-side secrets listed in the [Environment Variables](#server-side-secrets-supabase-edge-functions) section via `supabase secrets set`.
@@ -122,7 +122,7 @@ and redirects the browser to Google's consent screen.
 User grants calendar access on Google's consent page.
         │
         ▼
-Google redirects back to /settings/integrations/google-calendar/callback
+Google redirects back to /oauth/google-calendar/callback
 with an authorization code + state parameter.
         │
         ▼
@@ -187,8 +187,9 @@ src/
         integrations/
           index.tsx             # Integrations overview (/settings/integrations)
           google-calendar.tsx   # Google Calendar settings (/settings/integrations/google-calendar)
-          google-calendar/
-            callback.tsx        # OAuth callback handler (/settings/integrations/google-calendar/callback)
+    oauth/
+      google-calendar/
+        callback.tsx            # OAuth callback handler (/oauth/google-calendar/callback) — public route
   test/
     setup.ts                    # Vitest setup (jest-dom matchers)
     *.test.tsx / *.test.ts      # Unit/integration tests

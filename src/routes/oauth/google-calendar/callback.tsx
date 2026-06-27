@@ -6,9 +6,7 @@ import { Button } from '@/components/ui/button';
 import { exchangeCodeForTokens, validateOAuthState } from '@/lib/google-oauth';
 import { waitForSession } from '@/lib/supabase';
 
-export const Route = createFileRoute(
-  '/_authenticated/settings/integrations/google-calendar/callback',
-)({
+export const Route = createFileRoute('/oauth/google-calendar/callback')({
   validateSearch: z.object({
     code: z.string().optional(),
     state: z.string().optional(),
@@ -57,10 +55,13 @@ function OAuthCallbackHandler() {
         // Wait for Supabase to restore the session from storage.
         // After a full-page redirect from Google, the in-memory session is
         // populated asynchronously; getSession() can return null if called
-        // before hydration completes.
+        // before hydration completes. Use a generous timeout (10s) because
+        // this route is public (no beforeLoad guard) — the session check
+        // happens here, and a too-short timeout would fail on slow networks
+        // or when the stored access token needs a network refresh.
         const {
           data: { session },
-        } = await waitForSession();
+        } = await waitForSession(10_000);
         if (!session) {
           setState('error');
           setErrorMsg('You must be logged in to connect Google Calendar.');

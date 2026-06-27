@@ -9,7 +9,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // This app uses password-based auth (signInWithPassword), not Supabase
+    // OAuth or magic links. Disabling URL session detection prevents Supabase
+    // from misinterpreting the `code` query param on the Google OAuth callback
+    // URL (/oauth/google-calendar/callback?code=...) as a Supabase PKCE
+    // callback — which would try to exchange the Google code with Supabase's
+    // auth server, fail, and abort session recovery, leaving the user without
+    // a session on the callback page.
+    detectSessionInUrl: false,
+  },
+});
 
 /**
  * Wait for Supabase to finish restoring the auth session from storage.
