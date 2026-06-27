@@ -52,7 +52,7 @@ describe('google-oauth', () => {
       const { url } = buildAuthUrl();
 
       const redirectUri = encodeURIComponent(
-        'http://localhost:5173/settings/integrations/google-calendar/callback',
+        'http://localhost:5173/oauth/google-calendar/callback',
       );
       expect(url).toContain(`redirect_uri=${redirectUri}`);
     });

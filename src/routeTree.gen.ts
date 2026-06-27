@@ -17,10 +17,10 @@ import { Route as AuthenticatedDealsRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
 import { Route as AuthenticatedCompaniesRouteImport } from './routes/_authenticated/companies'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as OauthGoogleCalendarCallbackRouteImport } from './routes/oauth/google-calendar/callback'
 import { Route as AuthenticatedSettingsIntegrationsRouteImport } from './routes/_authenticated/settings/integrations'
 import { Route as AuthenticatedSettingsIntegrationsIndexRouteImport } from './routes/_authenticated/settings/integrations/index'
 import { Route as AuthenticatedSettingsIntegrationsGoogleCalendarRouteImport } from './routes/_authenticated/settings/integrations/google-calendar'
-import { Route as AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRouteImport } from './routes/_authenticated/settings/integrations/google-calendar/callback'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -62,6 +62,12 @@ const AuthenticatedSettingsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const OauthGoogleCalendarCallbackRoute =
+  OauthGoogleCalendarCallbackRouteImport.update({
+    id: '/oauth/google-calendar/callback',
+    path: '/oauth/google-calendar/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedSettingsIntegrationsRoute =
   AuthenticatedSettingsIntegrationsRouteImport.update({
     id: '/integrations',
@@ -80,12 +86,6 @@ const AuthenticatedSettingsIntegrationsGoogleCalendarRoute =
     path: '/google-calendar',
     getParentRoute: () => AuthenticatedSettingsIntegrationsRoute,
   } as any)
-const AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRoute =
-  AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRouteImport.update({
-    id: '/callback',
-    path: '/callback',
-    getParentRoute: () => AuthenticatedSettingsIntegrationsGoogleCalendarRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -95,10 +95,10 @@ export interface FileRoutesByFullPath {
   '/deals': typeof AuthenticatedDealsRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/settings/integrations': typeof AuthenticatedSettingsIntegrationsRouteWithChildren
+  '/oauth/google-calendar/callback': typeof OauthGoogleCalendarCallbackRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
-  '/settings/integrations/google-calendar': typeof AuthenticatedSettingsIntegrationsGoogleCalendarRouteWithChildren
+  '/settings/integrations/google-calendar': typeof AuthenticatedSettingsIntegrationsGoogleCalendarRoute
   '/settings/integrations/': typeof AuthenticatedSettingsIntegrationsIndexRoute
-  '/settings/integrations/google-calendar/callback': typeof AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -106,10 +106,10 @@ export interface FileRoutesByTo {
   '/contacts': typeof AuthenticatedContactsRoute
   '/deals': typeof AuthenticatedDealsRoute
   '/': typeof AuthenticatedIndexRoute
+  '/oauth/google-calendar/callback': typeof OauthGoogleCalendarCallbackRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
-  '/settings/integrations/google-calendar': typeof AuthenticatedSettingsIntegrationsGoogleCalendarRouteWithChildren
+  '/settings/integrations/google-calendar': typeof AuthenticatedSettingsIntegrationsGoogleCalendarRoute
   '/settings/integrations': typeof AuthenticatedSettingsIntegrationsIndexRoute
-  '/settings/integrations/google-calendar/callback': typeof AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -121,10 +121,10 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/settings/integrations': typeof AuthenticatedSettingsIntegrationsRouteWithChildren
+  '/oauth/google-calendar/callback': typeof OauthGoogleCalendarCallbackRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
-  '/_authenticated/settings/integrations/google-calendar': typeof AuthenticatedSettingsIntegrationsGoogleCalendarRouteWithChildren
+  '/_authenticated/settings/integrations/google-calendar': typeof AuthenticatedSettingsIntegrationsGoogleCalendarRoute
   '/_authenticated/settings/integrations/': typeof AuthenticatedSettingsIntegrationsIndexRoute
-  '/_authenticated/settings/integrations/google-calendar/callback': typeof AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -136,10 +136,10 @@ export interface FileRouteTypes {
     | '/deals'
     | '/settings'
     | '/settings/integrations'
+    | '/oauth/google-calendar/callback'
     | '/settings/'
     | '/settings/integrations/google-calendar'
     | '/settings/integrations/'
-    | '/settings/integrations/google-calendar/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -147,10 +147,10 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/deals'
     | '/'
+    | '/oauth/google-calendar/callback'
     | '/settings'
     | '/settings/integrations/google-calendar'
     | '/settings/integrations'
-    | '/settings/integrations/google-calendar/callback'
   id:
     | '__root__'
     | '/_authenticated'
@@ -161,15 +161,16 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/settings/integrations'
+    | '/oauth/google-calendar/callback'
     | '/_authenticated/settings/'
     | '/_authenticated/settings/integrations/google-calendar'
     | '/_authenticated/settings/integrations/'
-    | '/_authenticated/settings/integrations/google-calendar/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  OauthGoogleCalendarCallbackRoute: typeof OauthGoogleCalendarCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -230,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/oauth/google-calendar/callback': {
+      id: '/oauth/google-calendar/callback'
+      path: '/oauth/google-calendar/callback'
+      fullPath: '/oauth/google-calendar/callback'
+      preLoaderRoute: typeof OauthGoogleCalendarCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/settings/integrations': {
       id: '/_authenticated/settings/integrations'
       path: '/integrations'
@@ -251,40 +259,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIntegrationsGoogleCalendarRouteImport
       parentRoute: typeof AuthenticatedSettingsIntegrationsRoute
     }
-    '/_authenticated/settings/integrations/google-calendar/callback': {
-      id: '/_authenticated/settings/integrations/google-calendar/callback'
-      path: '/callback'
-      fullPath: '/settings/integrations/google-calendar/callback'
-      preLoaderRoute: typeof AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRouteImport
-      parentRoute: typeof AuthenticatedSettingsIntegrationsGoogleCalendarRoute
-    }
   }
 }
-
-interface AuthenticatedSettingsIntegrationsGoogleCalendarRouteChildren {
-  AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRoute: typeof AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRoute
-}
-
-const AuthenticatedSettingsIntegrationsGoogleCalendarRouteChildren: AuthenticatedSettingsIntegrationsGoogleCalendarRouteChildren =
-  {
-    AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRoute:
-      AuthenticatedSettingsIntegrationsGoogleCalendarCallbackRoute,
-  }
-
-const AuthenticatedSettingsIntegrationsGoogleCalendarRouteWithChildren =
-  AuthenticatedSettingsIntegrationsGoogleCalendarRoute._addFileChildren(
-    AuthenticatedSettingsIntegrationsGoogleCalendarRouteChildren,
-  )
 
 interface AuthenticatedSettingsIntegrationsRouteChildren {
-  AuthenticatedSettingsIntegrationsGoogleCalendarRoute: typeof AuthenticatedSettingsIntegrationsGoogleCalendarRouteWithChildren
+  AuthenticatedSettingsIntegrationsGoogleCalendarRoute: typeof AuthenticatedSettingsIntegrationsGoogleCalendarRoute
   AuthenticatedSettingsIntegrationsIndexRoute: typeof AuthenticatedSettingsIntegrationsIndexRoute
 }
 
 const AuthenticatedSettingsIntegrationsRouteChildren: AuthenticatedSettingsIntegrationsRouteChildren =
   {
     AuthenticatedSettingsIntegrationsGoogleCalendarRoute:
-      AuthenticatedSettingsIntegrationsGoogleCalendarRouteWithChildren,
+      AuthenticatedSettingsIntegrationsGoogleCalendarRoute,
     AuthenticatedSettingsIntegrationsIndexRoute:
       AuthenticatedSettingsIntegrationsIndexRoute,
   }
@@ -333,6 +319,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  OauthGoogleCalendarCallbackRoute: OauthGoogleCalendarCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

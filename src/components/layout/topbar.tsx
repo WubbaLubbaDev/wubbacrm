@@ -13,7 +13,7 @@ const pageTitles: Record<string, string> = {
   '/settings': 'Settings',
   '/settings/integrations': 'Integrations',
   '/settings/integrations/google-calendar': 'Google Calendar',
-  '/settings/integrations/google-calendar/callback': 'Google Calendar',
+  '/oauth/google-calendar/callback': 'Google Calendar',
 };
 
 export function TopBar() {

@@ -14,7 +14,7 @@ function makeAuthHeader(token: string): string {
 /** Build the Google OAuth authorization URL and generate a CSRF state token. */
 export function buildAuthUrl(): { url: string; state: string } {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  const redirectUri = `${window.location.origin}/settings/integrations/google-calendar/callback`;
+  const redirectUri = `${window.location.origin}/oauth/google-calendar/callback`;
   const state = crypto.randomUUID();
 
   const params = new URLSearchParams({
