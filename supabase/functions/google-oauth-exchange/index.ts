@@ -87,15 +87,23 @@ Deno.serve(async (req) => {
     // Calculate expires_at from expires_in (seconds)
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
-    // UPSERT tokens — one row per user
+    // UPSERT tokens — one row per user.
+    // Only include refresh_token if Google returned one (Google may omit it on
+    // re-authorization when the existing grant is still valid). The column is
+    // nullable for this reason; omitting the key avoids overwriting a previously
+    // stored refresh_token with null on a reconnect.
+    const upsertPayload: Record<string, unknown> = {
+      user_id: user.id,
+      access_token: tokens.access_token,
+      expires_at: expiresAt,
+      scope: tokens.scope,
+    };
+    if (tokens.refresh_token) {
+      upsertPayload.refresh_token = tokens.refresh_token;
+    }
+
     const { error: upsertError } = await supabase.from('google_oauth_tokens').upsert(
-      {
-        user_id: user.id,
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        expires_at: expiresAt,
-        scope: tokens.scope,
-      },
+      upsertPayload,
       { onConflict: 'user_id' },
     );
 

@@ -119,3 +119,57 @@ Branch: `feat/google-calendar-integration` (commit 1a52931)
 - The `google-oauth-disconnect` function does not check the revoke response status from Google. If Google's revoke endpoint fails, the DB row is still deleted. This is acceptable — the user's intent (disconnect) is fulfilled, and the token becomes useless once the DB row is gone.
 
 ### Verdict: APPROVED
+
+## Update: Google OAuth Callback Fix Review (2026-06-26, commit 669badb)
+
+Branch: `feat/google-calendar-integration` (commit 669badb, pushed to origin)
+
+### Bug 1: Deprecated Token Endpoint — PASS
+
+- `google-oauth-exchange/index.ts:45` now uses `https://oauth2.googleapis.com/token` (modern endpoint). Was `https://accounts.google.com/o/oauth2/token` (deprecated).
+- `google-token-refresh/index.ts:72` also updated to `https://oauth2.googleapis.com/token`. Was `https://accounts.google.com/o/oauth2/token`.
+- No other source files reference the old endpoint. The only remaining references are in `research/features/google-calendar-integration-brief.md` (lines 187, 211, 457, 619) — the research brief itself, which is documentation, not executable code. The coder correctly deviated from the brief per Google's deprecation. Non-blocking.
+- Note: `google-oauth-disconnect/index.ts` already used `https://oauth2.googleapis.com/revoke` (line not changed, was already correct).
+
+### Bug 2: iss/scope in Callback Search Schema — PASS
+
+- `callback.tsx:15-16` — `validateSearch` schema now includes `iss: z.string().optional()` and `scope: z.string().optional()`. TanStack Router will no longer reject the callback URL when Google appends these params.
+- The callback component still correctly extracts only `code` and `state` (lines 29-30) — `iss` and `scope` are accepted by the router but not used by the component logic. Correct: they're informational params from Google, not needed for the token exchange.
+- No route errors or flow breakage — the extra params are silently accepted and ignored.
+
+### OAuth Flow End-to-End Trace — PASS
+
+1. Frontend `buildAuthUrl()` (`google-oauth.ts:15-31`): generates URL with `client_id` from `VITE_GOOGLE_CLIENT_ID`, `redirect_uri = window.location.origin + /settings/integrations/google-calendar/callback`, `response_type=code`, `scope=https://www.googleapis.com/auth/calendar`, `access_type=offline`, `state=crypto.randomUUID()`, `prompt=consent`, `include_granted_scopes=true`. Correct.
+2. Google redirects to callback with `code`, `state`, `iss`, `scope` params.
+3. Callback route `validateSearch` accepts all four params (code, state, iss, scope — all optional strings). Correct.
+4. `validateOAuthState(stateParam)` (`google-oauth.ts:46-49`): compares against sessionStorage, removes stored state. CSRF protection intact.
+5. `exchangeCodeForTokens(code, jwt)` (`google-oauth.ts:53-66`): POSTs `{ code }` to Edge Function with user's JWT as Authorization header.
+6. Edge Function `google-oauth-exchange/index.ts`: validates JWT via `supabase.auth.getUser(jwt)`, exchanges code at `https://oauth2.googleapis.com/token` with `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `grant_type=authorization_code`. UPSERTs tokens into `google_oauth_tokens` table. Correct.
+7. On success, callback navigates to `/settings/integrations/google-calendar`.
+8. `google-calendar.tsx:37-48` — `getStoredTokens()` checks Supabase for token row, shows connected state with calendar selector. Correct.
+
+### Potential Remaining Issues — Checked
+
+1. **redirect_uri consistency**: Frontend uses `window.location.origin + /settings/integrations/google-calendar/callback` (`google-oauth.ts:17`). Edge Function uses `GOOGLE_REDIRECT_URI` env var (`google-oauth-exchange/index.ts:52`). These MUST match — this is a deployment configuration concern, not a code bug. The code is correct on both sides; the operator must set `GOOGLE_REDIRECT_URI` to the same value the frontend will generate. Documented in README and `.env.example`. Non-blocking (configuration, not code).
+
+2. **Missing GOOGLE_REDIRECT_URI handling**: The Edge Function uses `Deno.env.get('GOOGLE_REDIRECT_URI')!` with non-null assertion (line 52). If the env var is not set, this becomes `undefined`, and `new URLSearchParams` will serialize it as the string `"undefined"`, causing Google to return a `redirect_uri_mismatch` error. This is caught by the `tokens.error` check (line 58) and returned as a 400 with the error description. While the error message from Google would be somewhat clear, the non-null assertion is a minor code smell. However, this is pre-existing (not introduced by this fix commit) and the error is surfaced to the user. Non-blocking — noted as a minor improvement opportunity, not a blocker.
+
+3. **Other Google OAuth callback params**: Google may also send `error` and `error_description` params if the user denies consent or an error occurs. These are NOT in the `validateSearch` schema. If Google redirects with `?error=access_denied`, TanStack Router would reject the URL. This is a pre-existing issue (not introduced by this fix) and is a low-probability scenario (user clicks "Cancel" on Google's consent screen). Worth noting for a future fix but not a blocker for this review — the fix under review correctly addresses `iss` and `scope` which are the params Google always sends on success.
+
+### Build / Lint / Test — PASS
+
+- `npm run lint` (biome check) — PASS (55 files, no fixes applied)
+- `npm run build` (vite build) — PASS (187 modules, 6.85s)
+- `npm run test` (vitest run) — PASS (38/38 tests across 8 files)
+
+### Git — PASS
+
+- Commit `669badb` pushed to `origin/feat/google-calendar-integration`. Branch is up to date with remote.
+
+### PR
+
+- PR #6 already exists: https://github.com/WubbaLubbaDev/wubbacrm/pull/6 (Feature: Google Calendar Integration, base: main, state: OPEN). No new PR needed — this fix commit is already part of the existing PR.
+
+### Verdict: APPROVED
+
+Both fixes are correct, minimal, and well-scoped. The deprecated token endpoint is replaced in both Edge Functions. The callback search schema now accepts `iss` and `scope` params. The full OAuth flow traces correctly end-to-end. Build, lint, and all 38 tests pass. The code is pushed and included in the existing PR #6.
