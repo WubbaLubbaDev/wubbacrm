@@ -1,7 +1,7 @@
 // Google Calendar API helper — fetches the user's calendar list and manages
 // token freshness via the google-token-refresh Edge Function.
 
-import { supabase } from '@/lib/supabase';
+import { supabase, waitForSession } from '@/lib/supabase';
 
 /** Shape of a row in the google_oauth_tokens table. */
 export interface GoogleOAuthTokenRow {
@@ -38,7 +38,7 @@ export function isTokenExpired(expiresAt: string): boolean {
 export async function getStoredTokens(): Promise<GoogleOAuthTokenRow | null> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await waitForSession();
   if (!session) return null;
 
   const { data, error } = await supabase
@@ -67,7 +67,7 @@ export async function ensureFreshAccessToken(): Promise<string | null> {
   // Token expired — refresh via Edge Function
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await waitForSession();
   if (!session) return null;
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -104,7 +104,7 @@ export async function listCalendars(): Promise<GoogleCalendar[] | null> {
 export async function saveSelectedCalendar(calendarId: string): Promise<boolean> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await waitForSession();
   if (!session) return false;
 
   const { error } = await supabase

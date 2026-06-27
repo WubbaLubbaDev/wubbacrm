@@ -15,7 +15,7 @@ import {
   saveSelectedCalendar,
 } from '@/lib/google-calendar';
 import { disconnectGoogleCalendar } from '@/lib/google-oauth';
-import { supabase } from '@/lib/supabase';
+import { waitForSession } from '@/lib/supabase';
 
 export const Route = createFileRoute('/_authenticated/settings/integrations/google-calendar')({
   component: GoogleCalendarPage,
@@ -68,7 +68,7 @@ function GoogleCalendarPage() {
     setError(null);
     const {
       data: { session },
-    } = await supabase.auth.getSession();
+    } = await waitForSession();
     if (!session) {
       setDisconnecting(false);
       return;
