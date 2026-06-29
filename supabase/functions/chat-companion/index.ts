@@ -16,18 +16,24 @@
 //  12. Accumulate full response, store as assistant message in chat_messages
 //
 // Secrets required:
-//   OLLAMA_HOST               — URL of the Ollama server
-//   OLLAMA_CHAT_MODEL         — Chat model name (default: llama3.1:8b)
-//   OLLAMA_EMBED_MODEL        — Embedding model (default: nomic-embed-text)
-//   SUPABASE_URL              — Supabase project URL
-//   SUPABASE_SERVICE_ROLE_KEY — Service role key (bypasses RLS)
-//   GOOGLE_CALENDAR_CLIENT_ID     — Google OAuth client ID (for calendar booking)
-//   GOOGLE_CALENDAR_CLIENT_SECRET — Google OAuth client secret
+//   OLLAMA_HOST               — URL of the Ollama server (use https://ollama.com for Ollama Cloud)
+//   OLLAMA_API_KEY            — Ollama Cloud API key (optional; omit for a local Ollama server)
+//   OLLAMA_CHAT_MODEL         — Chat model name (default: llama3.1:8b; e.g. qwen3.5 on Cloud)
+//   GEMINI_API_KEY            — Google Gemini API key, used for embeddings (RAG)
+//   GEMINI_EMBED_MODEL        — Gemini embedding model (default: gemini-embedding-2, 768-dim)
+//   SUPABASE_URL              — Supabase project URL (auto-injected)
+//   SUPABASE_SECRET_KEYS      — Auto-injected JSON dict; ['default'] is the
+//                               service role key (bypasses RLS). The SUPABASE_
+//                               prefix is reserved — do NOT set it as a custom secret.
+//   GOOGLE_CLIENT_ID          — Google OAuth client ID (for calendar booking);
+//                               SAME secret the Google Calendar integration set.
+//   GOOGLE_CLIENT_SECRET      — Google OAuth client secret (same as above).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildSystemPrompt, isScheduleIntent } from './guardrails.ts';
 import { embedQuery, retrieveChunks } from './rag.ts';
 import { getAvailableSlots, createCalendarEvent } from './calendar.ts';
+import { listBookableStaff, resolveStaff } from './staff.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,10 +72,22 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    // Service role key: Supabase auto-injects it inside SUPABASE_SECRET_KEYS
+    // (a JSON dict; ['default'] is the service role key). The SUPABASE_ prefix
+    // is reserved, so SUPABASE_SERVICE_ROLE_KEY cannot be set as a custom secret.
+    const serviceRoleKey = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')!)['default'];
     const ollamaHost = Deno.env.get('OLLAMA_HOST') ?? 'http://localhost:11434';
+    const ollamaApiKey = Deno.env.get('OLLAMA_API_KEY');
     const chatModel = Deno.env.get('OLLAMA_CHAT_MODEL') ?? 'llama3.1:8b';
-    const embedModel = Deno.env.get('OLLAMA_EMBED_MODEL') ?? 'nomic-embed-text';
+    // Embeddings come from Gemini, not Ollama (Ollama Cloud has no embed models).
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')!;
+    const geminiEmbedModel = Deno.env.get('GEMINI_EMBED_MODEL') ?? 'gemini-embedding-2';
+
+    // Ollama Cloud requires a Bearer token on /api/chat; a local server needs none.
+    const ollamaHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (ollamaApiKey) {
+      ollamaHeaders.Authorization = `Bearer ${ollamaApiKey}`;
+    }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -106,46 +124,98 @@ Deno.serve(async (req) => {
     }));
 
     // -- RAG: embed query and retrieve chunks --
-    const queryEmbedding = await embedQuery(message, ollamaHost, embedModel);
+    const queryEmbedding = await embedQuery(message, geminiApiKey, geminiEmbedModel, 'RETRIEVAL_QUERY');
     let chunks: Awaited<ReturnType<typeof retrieveChunks>> = [];
     if (queryEmbedding) {
       chunks = await retrieveChunks(queryEmbedding, supabaseUrl, serviceRoleKey);
     }
 
     // -- Schedule intent detection + calendar query --
+    // A booking spans multiple turns: the visitor first says "I'd like to book"
+    // (keyword, no name), then later answers "Andrew" (name, no keyword). If we
+    // only looked at the latest message, that follow-up turn would have no
+    // schedule keyword and we'd never query the calendar. So detect intent AND
+    // resolve the target across the recent user turns, not just this message.
+    const recentUserText = conversationHistory
+      .filter((m) => m.role === 'user')
+      .slice(-5)
+      .map((m) => m.content)
+      .join('\n');
+
     let calendarContext: string | undefined;
-    const scheduleIntent = isScheduleIntent(message);
+    const scheduleIntent = isScheduleIntent(message) || isScheduleIntent(recentUserText);
 
     if (scheduleIntent) {
-      const googleClientId = Deno.env.get('GOOGLE_CALENDAR_CLIENT_ID');
-      const googleClientSecret = Deno.env.get('GOOGLE_CALENDAR_CLIENT_SECRET');
+      // Reuse the same OAuth client secrets the Google Calendar integration
+      // already set (GOOGLE_CLIENT_ID/SECRET) — secrets are shared across all
+      // Edge Functions in the project, so no separate calendar secrets needed.
+      const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID');
+      const googleClientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
 
       if (googleClientId && googleClientSecret) {
-        // Query for today + next 3 days
-        const dates: string[] = [];
-        for (let i = 0; i < 4; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          dates.push(d.toISOString().slice(0, 10));
-        }
+        // Bookable people are all registered users who connected their calendar.
+        const staff = await listBookableStaff(supabase);
+        const names = staff.map((s) => s.name).join(', ');
 
-        const allSlots: string[] = [];
-        for (const date of dates) {
-          const slots = await getAvailableSlots(date, {
-            SUPABASE_URL: supabaseUrl,
-            SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
-            GOOGLE_CALENDAR_CLIENT_ID: googleClientId,
-            GOOGLE_CALENDAR_CLIENT_SECRET: googleClientSecret,
-          });
-          if (slots && slots.length > 0) {
-            allSlots.push(`${date}: ${slots.map((s) => s.label).join(', ')}`);
-          }
-        }
-
-        if (allSlots.length > 0) {
-          calendarContext = allSlots.join('\n');
+        if (staff.length === 0) {
+          calendarContext =
+            'No team members have connected their calendar yet, so availability cannot be checked.';
         } else {
-          calendarContext = 'No available slots found in the next 4 days. Please ask the visitor to try a different date.';
+          // Figure out which team member the visitor wants to meet. Resolve
+          // across recent turns so a name given in an earlier reply still counts.
+          const target = resolveStaff(recentUserText, staff);
+
+          if (!target) {
+            calendarContext =
+              `The visitor wants to schedule but has not clearly named a person. ` +
+              `Bookable team members: ${names}. ` +
+              `Ask the visitor which team member they would like to meet with.`;
+          } else {
+            const env = {
+              SUPABASE_URL: supabaseUrl,
+              SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
+              GOOGLE_CALENDAR_CLIENT_ID: googleClientId,
+              GOOGLE_CALENDAR_CLIENT_SECRET: googleClientSecret,
+            };
+
+            // Query target's calendar for today + next 3 days. Anchor dates to
+            // Asia/Jakarta so "today"/"tomorrow" match the visitor's timezone
+            // (the runtime clock is UTC and would drift a day near midnight WIB).
+            const todayJakarta = new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'Asia/Jakarta',
+            }).format(new Date());
+            const base = new Date(`${todayJakarta}T00:00:00Z`);
+            const dates: string[] = [];
+            for (let i = 0; i < 4; i++) {
+              const d = new Date(base);
+              d.setUTCDate(d.getUTCDate() + i);
+              dates.push(d.toISOString().slice(0, 10));
+            }
+
+            const allSlots: string[] = [];
+            for (const date of dates) {
+              const slots = await getAvailableSlots(date, target.userId, env);
+              if (slots && slots.length > 0) {
+                allSlots.push(`${date}: ${slots.map((s) => s.label).join(', ')}`);
+              }
+            }
+
+            // Give the model the date anchor so it can map "tomorrow" → a date,
+            // and make clear these are the ONLY genuinely-free slots (a date
+            // missing from the list means that day is fully booked).
+            const dateAnchor =
+              `Today is ${dates[0]} (Asia/Jakarta). These are the only free ` +
+              `30-minute slots; any date not listed is fully booked.`;
+
+            if (allSlots.length > 0) {
+              calendarContext =
+                `${dateAnchor}\nAvailability for ${target.name} (next 4 days):\n${allSlots.join('\n')}`;
+            } else {
+              calendarContext =
+                `${dateAnchor}\n${target.name} has no open slots in the next 4 days. ` +
+                `Other bookable team members: ${names}.`;
+            }
+          }
         }
       }
     }
@@ -162,7 +232,7 @@ Deno.serve(async (req) => {
     // -- Call Ollama /api/chat with streaming --
     const ollamaRes = await fetch(`${ollamaHost}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: ollamaHeaders,
       body: JSON.stringify({
         model: chatModel,
         messages: ollamaMessages,
@@ -337,14 +407,33 @@ async function handleBooking(
     visitorName: string;
     visitorEmail: string;
     sessionToken: string;
+    // Which team member to book with. Either the explicit user id, or a name
+    // the client showed the visitor (resolved against the bookable list).
+    staffUserId?: string;
+    staffName?: string;
   },
 ): Promise<Response> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const googleClientId = Deno.env.get('GOOGLE_CALENDAR_CLIENT_ID')!;
-  const googleClientSecret = Deno.env.get('GOOGLE_CALENDAR_CLIENT_SECRET')!;
+  const serviceRoleKey = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')!)['default'];
+  const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID')!;
+  const googleClientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  // Resolve which team member's calendar to book on.
+  const staff = await listBookableStaff(supabase);
+  const target = bookingData.staffUserId
+    ? staff.find((s) => s.userId === bookingData.staffUserId)
+    : bookingData.staffName
+      ? resolveStaff(bookingData.staffName, staff)
+      : null;
+
+  if (!target) {
+    return new Response(
+      JSON.stringify({ error: 'Could not determine which team member to book with' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
 
   // Look up session
   const { data: session } = await supabase
@@ -360,11 +449,12 @@ async function handleBooking(
     );
   }
 
-  // Create Google Calendar event
+  // Create the Google Calendar event on the chosen team member's calendar.
   const eventId = await createCalendarEvent(
     bookingData.slot,
     bookingData.visitorName,
     bookingData.visitorEmail,
+    target.userId,
     {
       SUPABASE_URL: supabaseUrl,
       SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,

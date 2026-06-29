@@ -45,21 +45,21 @@ async function refreshAccessToken(
   return data.access_token ?? null;
 }
 
-/** Get a valid access token for the dashboard user from the stored refresh token. */
+/** Get a valid access token for a specific staff user from their stored refresh token. */
 async function getAccessToken(
   supabaseUrl: string,
   serviceRoleKey: string,
   clientId: string,
   clientSecret: string,
+  userId: string,
 ): Promise<string | null> {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Get the most recently connected user's tokens (single-tenant assumption)
+  // Read the tokens for the requested staff member's calendar.
   const { data, error } = await supabase
     .from('google_oauth_tokens')
     .select('access_token, refresh_token, expires_at')
-    .order('connected_at', { ascending: false })
-    .limit(1)
+    .eq('user_id', userId)
     .single();
 
   if (error || !data) return null;
@@ -82,6 +82,7 @@ async function getAccessToken(
  */
 export async function getAvailableSlots(
   dateISO: string,
+  userId: string,
   env: {
     SUPABASE_URL: string;
     SUPABASE_SERVICE_ROLE_KEY: string;
@@ -94,6 +95,7 @@ export async function getAvailableSlots(
     env.SUPABASE_SERVICE_ROLE_KEY,
     env.GOOGLE_CALENDAR_CLIENT_ID,
     env.GOOGLE_CALENDAR_CLIENT_SECRET,
+    userId,
   );
 
   if (!accessToken) return null;
@@ -167,8 +169,15 @@ export async function getAvailableSlots(
 
 /** Format a slot as a human-readable label in WIB. */
 function formatSlotLabel(start: Date, end: Date): string {
+  // Format in Asia/Jakarta explicitly. The runtime clock is UTC, so getHours()
+  // would return the UTC hour and mislabel every slot; Intl with timeZone fixes it.
   const fmt = (d: Date) =>
-    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: TIMEZONE,
+    }).format(d);
   return `${fmt(start)} - ${fmt(end)} WIB`;
 }
 
@@ -180,6 +189,7 @@ export async function createCalendarEvent(
   slot: { start: string; end: string },
   visitorName: string,
   visitorEmail: string,
+  userId: string,
   env: {
     SUPABASE_URL: string;
     SUPABASE_SERVICE_ROLE_KEY: string;
@@ -192,6 +202,7 @@ export async function createCalendarEvent(
     env.SUPABASE_SERVICE_ROLE_KEY,
     env.GOOGLE_CALENDAR_CLIENT_ID,
     env.GOOGLE_CALENDAR_CLIENT_SECRET,
+    userId,
   );
 
   if (!accessToken) return null;
